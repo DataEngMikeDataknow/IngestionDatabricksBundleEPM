@@ -1,0 +1,74 @@
+bundle:
+  name: midas_framework_bundle
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-1161217326944529.9.azuredatabricks.net
+    variables:
+      catalog_destino: epm_datalabs_catalog_dllo
+      schema_destino: facturacion
+      volume_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/midas_framework/dev
+      oracle_host: epm-to34.corp.epm.com.co
+      oracle_port: '1521'
+      oracle_service: SFUAT
+      oracle_user: SQL_EPMBOTPD05
+      oracle_password_key: AZ-SECRET-EPM-BOTPD05-FACTURACION-CTATECNICA
+      pause_schedule: PAUSED
+      cluster_id: 0120-142943-3slgxkot
+
+  uat:
+    mode: production
+    workspace:
+      host: https://<workspace_uat>.azuredatabricks.net
+      root_path: /Workspace/Users/<sp_uat_email>/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: <sp_uat_name>
+    variables:
+      catalog_destino: epm_datalake_catalog_np
+      schema_destino: facturacion
+      volume_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/midas_framework/uat
+      oracle_host: epm-to34.corp.epm.com.co
+      oracle_port: '1521'
+      oracle_service: SFUAT
+      # En UAT la conexion a Oracle usa el usuario tecnico asociado al Service Principal
+      # de la solucion. Confirmar con plataforma el usuario Oracle y la key del secreto.
+      oracle_user: <oracle_user_uat>
+      oracle_password_key: <oracle_password_key_uat>
+      pause_schedule: UNPAUSED
+
+  prod:
+    mode: production
+    workspace:
+      host: https://<workspace_prod>.azuredatabricks.net
+      root_path: /Workspace/Users/<sp_prod_email>/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: <sp_prod_name>
+    variables:
+      catalog_destino: epm_datalake_catalog_prod
+      schema_destino: facturacion
+      volume_path: /Volumes/epm_datalake_vol_prod/<vol_schema>/<volume>/midas_framework/prod
+      oracle_host: epm-to30.corp.epm.com.co   # CONFIRMAR host PROD con plataforma
+      oracle_port: '1521'
+      oracle_service: SFPDN
+      # En PROD la conexion a Oracle usa el usuario tecnico asociado al Service Principal
+      # de la solucion. Confirmar con plataforma el usuario Oracle y la key del secreto.
+      oracle_user: <oracle_user_prod>
+      oracle_password_key: <oracle_password_key_prod>
+      pause_schedule: UNPAUSED
+
+variables:
+  catalog_destino:     { description: "Catalogo de las tablas destino y control" }
+  schema_destino:      { description: "Schema (compartido con legacy)" }
+  volume_path:         { description: "Ruta del volume para Parquets intermedios" }
+  oracle_host:         { description: "Host Oracle" }
+  oracle_port:         { description: "Puerto Oracle" }
+  oracle_service:      { description: "Service name Oracle" }
+  oracle_user:         { description: "Usuario Oracle (NO esta en el secret scope, va explicito)" }
+  oracle_password_key: { description: "Key del password Oracle dentro del secret scope" }
+  pause_schedule:      { description: "PAUSED en dev, UNPAUSED en uat/prod" }
