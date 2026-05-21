@@ -72,3 +72,4 @@ variables:
   oracle_user:         { description: "Usuario Oracle (NO esta en el secret scope, va explicito)" }
   oracle_password_key: { description: "Key del password Oracle dentro del secret scope" }
   pause_schedule:      { description: "PAUSED en dev, UNPAUSED en uat/prod" }
+  cluster_id:          { description: "Id cluster de ejecucion (Aplica para Dev)" }
