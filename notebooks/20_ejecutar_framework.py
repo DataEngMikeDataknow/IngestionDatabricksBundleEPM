@@ -19,6 +19,21 @@ dbutils.widgets.text("oracle_host", "epm-to34.corp.epm.com.co")
 dbutils.widgets.text("oracle_port", "1521")
 dbutils.widgets.text("oracle_service", "SFUAT")
 
+# COMMAND ---------- 
+import sys, os 
+# Ruta a la carpeta src/ del bundle, relativa a este notebook. 
+# # Este notebook está en notebooks/, el paquete está en ../src/ 
+notebook_dir = os.path.dirname(     
+    dbutils.notebook.entry_point.getDbutils().notebook()
+    .getContext().notebookPath().get() 
+) 
+ruta_src = os.path.abspath(os.path.join("/Workspace", notebook_dir.lstrip("/"), "..", "src")) 
+
+if ruta_src not in sys.path:
+    sys.path.insert(0, ruta_src) 
+    
+print(f"src agregado al path: {ruta_src}")
+
 # COMMAND ----------
 from midas_framework.config import FrameworkConfig
 from midas_framework.orchestrator import MetadataOrchestrator
