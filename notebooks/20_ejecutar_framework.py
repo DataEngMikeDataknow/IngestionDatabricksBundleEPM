@@ -1,6 +1,11 @@
 # Databricks notebook source
 # MAGIC %md # Entrypoint del framework metadata-driven (job diario)
 
+# COMMAND ---------- 
+# MAGIC %pip install oracledb>=2.0.0 
+# COMMAND ---------- 
+dbutils.library.restartPython()
+
 # COMMAND ----------
 dbutils.widgets.text("ambiente", "dev")
 dbutils.widgets.text("catalog_destino", "epm_datalabs_catalog_dllo")

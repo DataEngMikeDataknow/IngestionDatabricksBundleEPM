@@ -30,9 +30,6 @@ resources:
               oracle_port: ${var.oracle_port}
               oracle_service: ${var.oracle_service}
           # Instala python-oracledb en el cluster que ejecuta el job.
-          libraries:
-            - pypi:
-                package: "oracledb>=2.0.0"
           # En DEV se usa un cluster existente. Configurarlo con:
           #   existing_cluster_id: <id_del_cluster_compartido>
           # En UAT/PROD se recomienda job cluster dedicado.
