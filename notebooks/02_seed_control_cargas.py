@@ -12,7 +12,7 @@ spark.sql(f"""
     USING (SELECT
         '{CATALOG}'                       AS catalog_destino,
         '{SCHEMA}'                        AS schema_destino,
-        'midas_promedio_subcategoria'     AS tabla_destino,
+        'vera_promedio_subcategoria'     AS tabla_destino,
         'QUERY_FULL_OVERWRITE'            AS tipo_carga,
         'q1_promedio_subcategoria'        AS query_key,
         TRUE                              AS activa,
@@ -40,7 +40,7 @@ spark.sql(f"""
     USING (SELECT
         '{CATALOG}'                       AS catalog_destino,
         '{SCHEMA}'                        AS schema_destino,
-        'midas_promedio_individual_6m'    AS tabla_destino,
+        'vera_promedio_individual_6m'    AS tabla_destino,
         'QUERY_FULL_OVERWRITE'            AS tipo_carga,
         'q2_promedio_individual_6m'       AS query_key,
         TRUE                              AS activa,
