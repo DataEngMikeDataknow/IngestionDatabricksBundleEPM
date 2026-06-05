@@ -1,9 +1,16 @@
 # Databricks notebook source
-# MAGIC %md # Seed de midas_control_cargas (Fase A)
+# MAGIC %md # 02 - Seed de midas_control_cargas (Fase A)
+# MAGIC
+# MAGIC Inserta/actualiza las 2 filas de control (Q1 y Q2). Parametrizado por
+# MAGIC widgets: cambia catalog/schema segun el ambiente donde lo ejecutes.
 
 # COMMAND ----------
-CATALOG, SCHEMA = "epm_datalabs_catalog_dllo", "facturacion"
+dbutils.widgets.text("catalog_destino", "epm_datalabs_catalog_dllo")
+dbutils.widgets.text("schema_destino", "facturacion")
+CATALOG = dbutils.widgets.get("catalog_destino")
+SCHEMA  = dbutils.widgets.get("schema_destino")
 TABLA_CONTROL = f"{CATALOG}.{SCHEMA}.midas_control_cargas"
+print(f"Sembrando control en: {TABLA_CONTROL}")
 
 # COMMAND ----------
 # ───── FILA 1: Q1 — Promedio Subcategoria ─────
