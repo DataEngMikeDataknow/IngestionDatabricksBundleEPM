@@ -5,6 +5,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class FrameworkConfig:
     ambiente: str
+    job_name: str
     catalog_destino: str
     schema_destino: str
     volume_path: str
@@ -40,6 +41,7 @@ class FrameworkConfig:
         g = dbutils.widgets.get
         return cls(
             ambiente=g("ambiente"),
+            job_name=g("job_name"),
             catalog_destino=g("catalog_destino"),
             schema_destino=g("schema_destino"),
             volume_path=g("volume_path"),

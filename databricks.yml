@@ -86,6 +86,7 @@ targets:
                   ambiente: ${bundle.target}
                   catalog_destino: ${var.catalog_destino}
                   schema_destino: ${var.schema_destino}
+                  job_name: vera_framework
                   volume_path: ${var.volume_path}
                   oracle_secret_scope: ${var.oracle_secret_scope}
                   oracle_user: ${var.oracle_user}
@@ -152,6 +153,7 @@ targets:
                   catalog_destino: ${var.catalog_destino}
                   schema_destino: ${var.schema_destino}
                   volume_path: ${var.volume_path}
+                  job_name: vera_framework
                   oracle_secret_scope: ${var.oracle_secret_scope}
                   oracle_user: ${var.oracle_user}
                   oracle_password_key: ${var.oracle_password_key}
@@ -221,6 +223,7 @@ targets:
                   catalog_destino: ${var.catalog_destino}
                   schema_destino: ${var.schema_destino}
                   volume_path: ${var.volume_path}
+                  job_name: vera_framework
                   oracle_secret_scope: ${var.oracle_secret_scope}
                   oracle_user: ${var.oracle_user}
                   oracle_password_key: ${var.oracle_password_key}

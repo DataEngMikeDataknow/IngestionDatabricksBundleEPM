@@ -6,15 +6,17 @@ from pyspark.sql import SparkSession, Row
 
 class ControlManager:
 
-    def __init__(self, spark: SparkSession, tabla_control: str, tabla_log: str):
+    def __init__(self, spark: SparkSession, tabla_control: str, tabla_log: str, job_name: str):
         self.spark = spark
         self.tabla_control = tabla_control
         self.tabla_log = tabla_log
+        self.job_name = job_name
 
     def get_cargas_activas(self) -> list[Row]:
         return self.spark.sql(f"""
             SELECT * FROM {self.tabla_control}
             WHERE activa = TRUE
+            AND job_name = '{self.job_name}'
             ORDER BY orden_ejecucion NULLS LAST, id_carga
         """).collect()
 

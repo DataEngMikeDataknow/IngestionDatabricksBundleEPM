@@ -25,7 +25,7 @@ class MetadataOrchestrator:
         self.extractor = OracleExtractor(spark, creds)
         self.loader = BronzeLoader(spark, config.volume_path, config.run_id)
         self.control = ControlManager(spark, config.tabla_control,
-                                      config.tabla_log)
+                                      config.tabla_log, config.job_name)
 
     def run_daily(self) -> dict:
         """Ejecuta todas las cargas activas. No aborta el lote si una falla."""
