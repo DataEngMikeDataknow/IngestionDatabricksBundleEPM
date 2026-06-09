@@ -81,7 +81,7 @@ targets:
             - task_key: ejecutar_framework
               existing_cluster_id: ${var.cluster_id}
               notebook_task:
-                notebook_path: ../notebooks/20_ejecutar_framework.py
+                notebook_path: ./notebooks/20_ejecutar_framework.py
                 base_parameters:
                   ambiente: ${bundle.target}
                   catalog_destino: ${var.catalog_destino}
@@ -147,7 +147,7 @@ targets:
             - task_key: ejecutar_framework
               job_cluster_key: midas_framework_cluster
               notebook_task:
-                notebook_path: ../notebooks/20_ejecutar_framework.py
+                notebook_path: ./notebooks/20_ejecutar_framework.py
                 base_parameters:
                   ambiente: ${bundle.target}
                   catalog_destino: ${var.catalog_destino}
@@ -217,7 +217,7 @@ targets:
             - task_key: ejecutar_framework
               job_cluster_key: midas_framework_cluster
               notebook_task:
-                notebook_path: ../notebooks/20_ejecutar_framework.py
+                notebook_path: ./notebooks/20_ejecutar_framework.py
                 base_parameters:
                   ambiente: ${bundle.target}
                   catalog_destino: ${var.catalog_destino}
