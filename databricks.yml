@@ -55,10 +55,10 @@ targets:
     default: true
     workspace:
       host: https://adb-1161217326944529.9.azuredatabricks.net
-      #root_path: /Shared/bundles/vera_framework
+      root_path: /Workspace/Users/${var.service_principal}/.bundle/${bundle.name}/${bundle.target}
     run_as:
-      #service_principal_name: ${var.service_principal}
-      user_name: mpalomin@contratista.epm.co
+      service_principal_name: ${var.service_principal}
+      #user_name: mpalomin@contratista.epm.co
     variables:
       catalog_destino: epm_datalabs_catalog_dllo
       schema_destino: facturacion
@@ -115,9 +115,9 @@ targets:
     mode: production
     workspace:
       host: https://adb-6159907084216583.3.azuredatabricks.net
-      #root_path: /Shared/bundles/vera_framework
+      root_path: /Workspace/Users/${var.service_principal}/.bundle/${bundle.name}/${bundle.target}
     run_as:
-      service_principal_name: c0b3fdca-baec-4bab-9f08-c6e222d921ae
+      service_principal_name: ${var.service_principal}
     variables:
       catalog_destino: epm_datalake_catalog_np   
       schema_destino: facturacion
@@ -128,6 +128,7 @@ targets:
       oracle_user: SQL_EPMBOTPD05 
       oracle_secret_scope: AZ-SecretScopeDBKS-EPM-NP-KV-DLLO
       oracle_password_key: AZ-SECRET-EPM-BOTPD05-FACTURACION-CTATECNICA
+      service_principal: c0b3fdca-baec-4bab-9f08-c6e222d921ae
       pause_schedule: UNPAUSED
       spark_version: 15.4.x-scala2.12
       node_type_id: Standard_DS3_v2
@@ -184,11 +185,11 @@ targets:
     mode: production
     workspace:
       host: https://adb-5768199714870840.0.azuredatabricks.net
-      #root_path: /Shared/bundles/vera_framework
+      root_path: /Workspace/Users/${var.service_principal}/.bundle/${bundle.name}/${bundle.target}
     run_as:
-      service_principal_name: 1db15634-31b7-4f92-a976-fc8920216152
+      service_principal_name: ${var.service_principal}
     variables:
-      catalog_destino: epm_datalake_catalog_prod   # CONFIRMAR catalogo real de PROD
+      catalog_destino: epm_datalake_catalog_prod  
       schema_destino: facturacion
       volume_path: /Volumes/epm_datalake_vol_prod/facturacion_vol/facturacion_bronze_vol/vera_framework/pdn
       oracle_host: epm-to34.corp.epm.com.co   # CONFIRMAR host PROD con plataforma
@@ -198,6 +199,7 @@ targets:
       oracle_user: SQL_EPMBOTPD05
       oracle_secret_scope: AZ-SecretScopeDBKS-EPM-PROD
       oracle_password_key: AZ-SECRET-EPM-BOTPD05-FACTURACION-CTATECNICA
+      service_principal: 1db15634-31b7-4f92-a976-fc8920216152
       pause_schedule: UNPAUSED
       spark_version: 15.4.x-scala2.12
       node_type_id: Standard_DS3_v2
