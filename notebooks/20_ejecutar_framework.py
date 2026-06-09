@@ -1,10 +1,21 @@
 # Databricks notebook source
 # MAGIC %md # Entrypoint del framework metadata-driven (job diario)
 # MAGIC
-# MAGIC El paquete `vera_framework` y el driver `oracledb` vienen instalados
-# MAGIC como librerias del **job cluster** (ver `libraries:` en
-# MAGIC `databricks.yml`). Por eso este notebook **ya no**
-# MAGIC necesita los parches de desarrollo (`%pip install` ni `sys.path`).
+# MAGIC Las dependencias (driver `oracledb`) se instalan a nivel de NOTEBOOK con
+# MAGIC `%pip` (primera celda), mecanismo unico para TODOS los ambientes (dllo,
+# MAGIC uat, pdn): por restriccion de plataforma no se pueden instalar librerias
+# MAGIC a nivel de cluster. El paquete propio `vera_framework` se resuelve via
+# MAGIC `sys.path` (los archivos del bundle, incluido `src/`, se sincronizan al
+# MAGIC workspace), no por wheel.
+
+# COMMAND ----------
+# Instalacion de dependencias a nivel de NOTEBOOK. Es el mecanismo unico para
+# TODOS los ambientes (dllo, uat, pdn): por restriccion de plataforma no se
+# pueden instalar librerias a nivel de cluster en ningun entorno.
+# Va de PRIMERO porque dbutils.library.restartPython() reinicia el kernel y
+# borra todo lo definido antes (los widgets sobreviven, el codigo Python no).
+%pip install oracledb>=2.0.0
+dbutils.library.restartPython()
 
 # COMMAND ----------
 # Widgets: el job los rellena desde base_parameters del job.yml.
@@ -21,13 +32,10 @@ dbutils.widgets.text("oracle_port", "1521")
 dbutils.widgets.text("oracle_service", "SFUAT")
 
 # COMMAND ----------
-# Fallback SOLO para ejecucion INTERACTIVA manual (notebook adjunto a un
-# cluster, no como tarea del job). Cuando corre como job, el wheel ya esta
-# instalado y este bloque no hace nada.
-#
-# Nota: si ejecutas a mano en un cluster sin oracledb, instalalo tu mismo en
-# esa sesion con:  %pip install oracledb>=2.0.0  y luego dbutils.library.restartPython()
-# No vuelvas a dejar eso fijo en el archivo versionado.
+# Resolucion del paquete propio `vera_framework` SIN instalarlo como wheel en
+# ningun ambiente: si no esta en el path, se agrega `src/` del bundle (que el
+# deploy sincroniza al workspace, p.ej. /Workspace/.../files/src) al sys.path.
+# oracledb ya quedo instalado por el %pip de la primera celda.
 try:
     import vera_framework  # noqa: F401
 except ModuleNotFoundError:

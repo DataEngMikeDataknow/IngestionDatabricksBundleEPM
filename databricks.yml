@@ -46,9 +46,11 @@ targets:
   # DESARROLLO
   # Usa existing_cluster_id: el SP de dllo no tiene
   # permisos para crear clusters nuevos en plataforma.
-  # oracledb ya esta instalado en el cluster compartido, y el
-  # paquete del framework se resuelve via sys.path (fallback del
-  # notebook 20_ejecutar_framework.py), por eso NO hay 'libraries:'.
+  # NINGUN target instala librerias via el bundle (no hay 'libraries:'):
+  # por restriccion de plataforma no se pueden instalar libs a nivel de cluster
+  # en ningun entorno. oracledb se instala por %pip en la primera celda del
+  # notebook 20_ejecutar_framework.py (igual en dllo/uat/pdn) y el paquete del
+  # framework se resuelve via sys.path (fallback del mismo notebook).
   
   dllo:
     mode: production
@@ -173,10 +175,6 @@ targets:
                   oracle_host: ${var.oracle_host}
                   oracle_port: ${var.oracle_port}
                   oracle_service: ${var.oracle_service}
-              libraries:
-                - whl: ../dist/*.whl
-                - pypi:
-                    package: oracledb>=2.0.0
 
   
   # PRODUCCIÓN
@@ -244,7 +242,3 @@ targets:
                   oracle_host: ${var.oracle_host}
                   oracle_port: ${var.oracle_port}
                   oracle_service: ${var.oracle_service}
-              libraries:
-                - whl: ../dist/*.whl
-                - pypi:
-                    package: oracledb>=2.0.0
