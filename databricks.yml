@@ -103,7 +103,7 @@ targets:
     mode: production
     workspace:
       host: https://adb-6159907084216583.3.azuredatabricks.net
-      root_path: /Shared/bundles/vera_framework
+      #root_path: /Shared/bundles/vera_framework
     run_as:
       service_principal_name: c0b3fdca-baec-4bab-9f08-c6e222d921ae
     variables:
@@ -172,7 +172,7 @@ targets:
     mode: production
     workspace:
       host: https://adb-5768199714870840.0.azuredatabricks.net
-      root_path: /Shared/bundles/vera_framework
+      #root_path: /Shared/bundles/vera_framework
     run_as:
       service_principal_name: 1db15634-31b7-4f92-a976-fc8920216152
     variables:
