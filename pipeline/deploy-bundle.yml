@@ -1,0 +1,210 @@
+name: "Vera Agent - Deploy Bundle"
+
+trigger:
+  branches:
+    include:
+      - desarrollo
+      - pruebas
+      - produccion
+
+  paths:
+    exclude:
+      - readme.md
+      - pipeline/**
+      - feature/**
+
+parameters:
+  - name: environment
+    displayName: "Entorno de despliegue"
+    type: string
+    default: dllo
+    values:
+      - dllo
+      - uat
+      - pdn
+
+variables:
+  - group: databricks-VERA
+  - name: DATABRICKS_CLI_VERSION
+    value: "0.240.0"
+
+# ─────────────────────────────────────────────
+# Mapeo rama → entorno
+# ─────────────────────────────────────────────
+# Rama desarrollo  → target dllo  (desarrollo)
+# Rama pruebas     → target uat   (calidad)
+# Rama produccion  → target pdn   (producción)
+# ─────────────────────────────────────────────
+
+stages:
+
+  # ──────────────────────────────
+  # DLLO — Desarrollo
+  # ──────────────────────────────
+  - stage: Deploy_DLLO
+    displayName: "Despliegue → dllo (Desarrollo)"
+    pool:
+          name: Interno-Ubuntu20.04-VMSS
+    condition: >
+      or(
+        eq(variables['Build.SourceBranchName'], 'desarrollo'),
+        and(eq('${{ parameters.environment }}', 'dllo'), eq(variables['Build.Reason'], 'Manual'))
+      )
+    jobs:
+      - job: DeployDllo
+        displayName: "Bundle deploy dllo"
+        steps:
+          - checkout: self
+
+          - script: |
+              echo "=== Eliminando CLI anterior ==="
+              sudo rm -f /usr/local/bin/databricks
+              
+              echo "=== Instalando Databricks CLI ==="
+              curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+              
+              echo "=== Versión instalada ==="
+              databricks version
+              
+              echo "##vso[task.prependpath]$HOME/.local/bin"
+            displayName: "Instalar o validar Databricks CLI"
+
+          - script: |
+              echo "====== VARIABLES DE ENTORNO ======"
+              echo "DATABRICKS_HOST: $DATABRICKS_HOST"
+              echo "TARGET: dllo"
+              echo ""
+              echo "====== ESTRUCTURA DE CARPETAS ======"
+              find . -name "*.yml" | grep -v node_modules | sort
+              echo ""
+              echo "====== CONTENIDO databricks.yml ======"
+              cat databricks.yml
+              echo ""
+              echo "====== CONTENIDO resources/dllo/ ======"
+              cat resources/dllo/*.yml
+              echo ""
+              echo "====== BUNDLE VALIDATE (raw) ======"
+            displayName: "Diagnostico - archivos y variables"
+            env:
+              DATABRICKS_HOST: $(DEV_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(DEV_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(DEV_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+              
+          - script: |
+              databricks bundle validate -t dllo
+            displayName: "Validar bundle (dllo)"
+            env:
+              DATABRICKS_HOST: $(DEV_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(DEV_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(DEV_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+
+          - script: |
+              databricks bundle deploy -t dllo
+            displayName: "Desplegar bundle (dllo)"
+            env:
+              DATABRICKS_HOST: $(DEV_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(DEV_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(DEV_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+  # ──────────────────────────────
+  # UAT — Pruebas / Calidad
+  # ──────────────────────────────
+  - stage: Deploy_UAT
+    displayName: "Despliegue → uat (Calidad-Pruebas)"
+    pool:
+          name: Interno-Ubuntu20.04-VMSS
+    dependsOn: []
+    condition: >
+      or(
+        eq(variables['Build.SourceBranchName'], 'pruebas'),
+        and(eq('${{ parameters.environment }}', 'uat'), eq(variables['Build.Reason'], 'Manual'))
+      )
+    jobs:
+      - job: DeployUat
+        displayName: "Bundle deploy uat"
+        steps:
+          - checkout: self
+
+          - script: |
+              echo "=== Eliminando CLI anterior ==="
+              sudo rm -f /usr/local/bin/databricks
+              
+              echo "=== Instalando Databricks CLI ==="
+              curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+              
+              echo "=== Versión instalada ==="
+              databricks version
+              
+              echo "##vso[task.prependpath]$HOME/.local/bin"
+            displayName: "Instalar o validar Databricks CLI"
+
+          - script: |
+              databricks bundle validate -t uat
+            displayName: "Validar bundle (uat)"
+            env:
+              DATABRICKS_HOST: $(UAT_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(UAT_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(UAT_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+
+          - script: |
+              databricks bundle deploy -t uat
+            displayName: "Desplegar bundle (uat)"
+            env:
+              DATABRICKS_HOST: $(UAT_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(UAT_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(UAT_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+              
+
+  # ──────────────────────────────
+  # PDN — Producción
+  # ──────────────────────────────
+  - stage: Deploy_PDN
+    displayName: "Despliegue → pdn (Producción)"
+    pool:
+          name: Interno-Ubuntu20.04-VMSS
+    dependsOn: []
+    condition: >
+      or(
+        eq(variables['Build.SourceBranchName'], 'produccion'),
+        and(eq('${{ parameters.environment }}', 'pdn'), eq(variables['Build.Reason'], 'Manual'))
+      )
+    jobs:
+      - job: DeployPdn
+        displayName: "Bundle deploy pdn"
+        steps:
+          - checkout: self
+
+          - script: |
+              echo "=== Eliminando CLI anterior ==="
+              sudo rm -f /usr/local/bin/databricks
+              
+              echo "=== Instalando Databricks CLI ==="
+              curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+              
+              echo "=== Versión instalada ==="
+              databricks version
+              
+              echo "##vso[task.prependpath]$HOME/.local/bin"
+            displayName: "Instalar o validar Databricks CLI"
+
+          - script: |
+              databricks bundle validate -t pdn
+            displayName: "Validar bundle (pdn)"
+            env:
+              DATABRICKS_HOST: $(PROD_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(PROD_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(PROD_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+
+          - script: |
+              databricks bundle deploy -t pdn
+            displayName: "Desplegar bundle (pdn)"
+            env:
+              DATABRICKS_HOST: $(PROD_DATABRICKS_HOST)
+              DATABRICKS_CLIENT_ID: $(PROD_AZURE_SP_APPLICATION_ID)
+              DATABRICKS_CLIENT_SECRET: $(PROD_AZURE_SP_CLIENT_SECRET)
+              DATABRICKS_AZURE_TENANT_ID: $(AZURE_TENANT_ID)
