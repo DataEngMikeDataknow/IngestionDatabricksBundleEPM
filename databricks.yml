@@ -7,6 +7,17 @@ artifacts:
     build: pip wheel --no-deps --wheel-dir dist .
     path: .
 
+# Archivos que NO deben sincronizarse al workspace.
+# __pycache__/.pyc son volátiles (se regeneran al construir el wheel) y rompen
+# el deploy con "no such file or directory". El wheel de dist/ se sube por el
+# mecanismo de 'artifacts', no por el sync de archivos.
+sync:
+  exclude:
+    - "**/__pycache__/**"
+    - "**/*.pyc"
+    - "dist/**"
+    - ".databricks/**"
+
 
 # Declaración global de variables
 
