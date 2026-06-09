@@ -44,9 +44,10 @@ targets:
     default: true
     workspace:
       host: https://adb-1161217326944529.9.azuredatabricks.net
-      root_path: /Shared/bundles/vera_framework
+      #root_path: /Shared/bundles/vera_framework
     run_as:
-      service_principal_name: ${var.service_principal}
+      #service_principal_name: ${var.service_principal}
+      user_name: mpalomin@contratista.epm.co
     variables:
       catalog_destino: epm_datalabs_catalog_dllo
       schema_destino: facturacion
