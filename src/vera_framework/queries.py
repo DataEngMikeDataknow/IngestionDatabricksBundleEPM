@@ -7,6 +7,7 @@ Mantener el SQL aquí (y no en una celda Delta) permite:
   - revisión de código de cambios al SQL
   - testing
 """
+from __future__ import annotations
 
 # El SQL completo de cada query está en la Sección 5.1 / 5.2 de la guía.
 QUERIES: dict[str, str] = {

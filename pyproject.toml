@@ -2,7 +2,12 @@
 name = "vera_framework"
 version = "0.1.0"
 description = "Framework de ingestion metadata-driven para Vera Multiagente"
-requires-python = ">=3.10"
+# El agente de build (Azure DevOps self-hosted, Ubuntu 20.04) trae Python 3.8.
+# Construir el wheel no ejecuta el codigo; el wheel es py3-none-any y corre en
+# el cluster (Databricks Runtime 15.4 = Python 3.11). Se baja el piso a 3.8 para
+# no bloquear el build; el codigo es 3.8-safe gracias a
+# 'from __future__ import annotations' en los modulos con genericos PEP 585.
+requires-python = ">=3.8"
 dependencies = [
     "databricks-sdk>=0.20.0",
     "oracledb>=2.0.0",

@@ -1,4 +1,5 @@
 """Gestor de las tablas de control."""
+from __future__ import annotations
 from typing import Optional
 from datetime import datetime, timezone
 from pyspark.sql import SparkSession, Row
