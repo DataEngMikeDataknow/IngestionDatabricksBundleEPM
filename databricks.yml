@@ -51,7 +51,7 @@ targets:
     variables:
       catalog_destino: epm_datalabs_catalog_dllo
       schema_destino: facturacion
-      volume_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/vera_framework/dev
+      volume_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/vera_framework/dllo
       oracle_host: epm-to34.corp.epm.com.co
       oracle_port: '1521'
       oracle_service: SFUAT
@@ -179,7 +179,7 @@ targets:
     variables:
       catalog_destino: epm_datalake_catalog_prod   # CONFIRMAR catalogo real de PROD
       schema_destino: facturacion
-      volume_path: /Volumes/epm_datalake_vol_prod/facturacion_vol/facturacion_bronze_vol/vera_framework/prod
+      volume_path: /Volumes/epm_datalake_vol_prod/facturacion_vol/facturacion_bronze_vol/vera_framework/pdn
       oracle_host: epm-to34.corp.epm.com.co   # CONFIRMAR host PROD con plataforma
       oracle_port: '1522'
       oracle_service: SFPDN
