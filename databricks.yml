@@ -142,8 +142,6 @@ targets:
           permissions:
             - level: CAN_MANAGE_RUN
               user_name: frans.taboada@epm.com.co
-            - level: CAN_MANAGE_RUN
-              user_name: mpalomin@contratista.epm.co
           schedule:
             quartz_cron_expression: "0 0 4 * * ?"   # 04:00 hora Colombia
             timezone_id: America/Bogota
@@ -209,8 +207,6 @@ targets:
           permissions:
             - level: CAN_MANAGE_RUN
               user_name: frans.taboada@epm.com.co
-            - level: CAN_MANAGE_RUN
-              user_name: mpalomin@contratista.epm.co
           schedule:
             quartz_cron_expression: "0 0 4 * * ?"   # 04:00 hora Colombia
             timezone_id: America/Bogota
