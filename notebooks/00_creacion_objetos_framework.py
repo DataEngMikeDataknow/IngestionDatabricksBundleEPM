@@ -7,8 +7,14 @@
 # MAGIC ejecucion: por eso debe ser idempotente (no recrea ni borra nada existente).
 # MAGIC
 # MAGIC Parametrizado por `catalog_destino`/`schema_destino` para servir a
-# MAGIC dllo/uat/pdn con el mismo codigo. **Solo estructura (DDL).** El seed de datos
-# MAGIC de la tabla de control vive en `02_seed_control_cargas.py`.
+# MAGIC dllo/uat/pdn con el mismo codigo. Hace dos cosas:
+# MAGIC 1. **Estructura (DDL):** crea control, log y las 2 tablas destino.
+# MAGIC 2. **Bootstrap del control:** siembra las filas de config que el framework
+# MAGIC    lee para saber que cargar, con semantica *insertar si falta* (no pisa
+# MAGIC    ediciones manuales). Asi uat/pdn quedan operativos sin pasos manuales.
+# MAGIC
+# MAGIC > El notebook `02_seed_control_cargas.py` queda como utilitario manual
+# MAGIC > (reseed/ajustes y filas de otros jobs); el bootstrap minimo ya vive aqui.
 # MAGIC
 # MAGIC > Requiere que el principal de ejecucion tenga `USE CATALOG`, `USE SCHEMA` y
 # MAGIC > `CREATE TABLE` sobre el schema destino.
@@ -43,6 +49,7 @@ crear_tabla(
         tabla_destino       STRING  NOT NULL,
         tipo_carga          STRING  NOT NULL,
         query_key           STRING  NOT NULL,
+        job_name            STRING,                  -- job dueño de la carga; el framework filtra por esto
         activa              BOOLEAN NOT NULL,
         orden_ejecucion     INT,
         query_padre_id           BIGINT,
@@ -122,12 +129,75 @@ crear_tabla(
 )
 
 # COMMAND ----------
+# ───── Seed (bootstrap) de la tabla de CONTROL ─────
+# Crea las filas de configuracion que el framework lee para saber QUE cargar.
+# Semantica "insertar si falta" (solo WHEN NOT MATCHED): es idempotente y seguro
+# de correr en cada ejecucion del job, SIN pisar ediciones manuales. Si un
+# operador edita una fila existente (p. ej. activa=FALSE para desactivar una
+# carga), el bootstrap NO la sobreescribe. Para cambiar la config de una fila
+# que ya existe se edita la tabla de control directamente.
+CARGAS_BOOTSTRAP = [
+    {
+        "tabla_destino":   "vera_promedio_subcategoria",
+        "tipo_carga":      "QUERY_FULL_OVERWRITE",
+        "query_key":       "q1_promedio_subcategoria",
+        "orden_ejecucion": 10,
+        "comentarios":     "Promedio por subcategoria. Snapshot diario de ordenes de calidad activas.",
+    },
+    {
+        "tabla_destino":   "vera_promedio_individual_6m",
+        "tipo_carga":      "QUERY_FULL_OVERWRITE",
+        "query_key":       "q2_promedio_individual_6m",
+        "orden_ejecucion": 20,
+        "comentarios":     "Promedio individual 6 meses. Snapshot diario de ordenes de calidad activas.",
+    },
+]
+
+control = f"{CATALOG}.{SCHEMA}.midas_control_cargas"
+for c in CARGAS_BOOTSTRAP:
+    spark.sql(f"""
+        MERGE INTO {control} t
+        USING (SELECT
+            '{CATALOG}'              AS catalog_destino,
+            '{SCHEMA}'               AS schema_destino,
+            '{c["tabla_destino"]}'   AS tabla_destino,
+            '{c["tipo_carga"]}'      AS tipo_carga,
+            '{c["query_key"]}'       AS query_key,
+            'vera_framework'         AS job_name,
+            TRUE                     AS activa,
+            {c["orden_ejecucion"]}   AS orden_ejecucion,
+            '{c["comentarios"]}'     AS comentarios
+        ) s
+        ON t.tabla_destino = s.tabla_destino
+        WHEN NOT MATCHED THEN INSERT
+            (catalog_destino, schema_destino, tabla_destino, tipo_carga,
+             query_key, job_name, activa, orden_ejecucion, comentarios)
+            VALUES (s.catalog_destino, s.schema_destino, s.tabla_destino,
+                    s.tipo_carga, s.query_key, s.job_name, s.activa,
+                    s.orden_ejecucion, s.comentarios)
+    """)
+    print(f"OK  control bootstrap (insert-if-missing): {c['tabla_destino']}")
+
+# COMMAND ----------
 # ───── Verificacion: las 4 tablas del framework existen ─────
 for tbl in ["midas_control_cargas", "midas_log_cargas",
             "vera_promedio_subcategoria", "vera_promedio_individual_6m"]:
     full = f"{CATALOG}.{SCHEMA}.{tbl}"
     assert spark.catalog.tableExists(full), f"FALTA: {full}"
     print(f"OK  existe {full}")
+
+# COMMAND ----------
+# ───── Verificacion: filas de control activas para vera_framework ─────
+# Si esto sale vacio, el job no cargaria nada.
+filas_control = spark.sql(f"""
+    SELECT tabla_destino, tipo_carga, query_key, activa, orden_ejecucion
+    FROM {CATALOG}.{SCHEMA}.midas_control_cargas
+    WHERE job_name = 'vera_framework'
+    ORDER BY orden_ejecucion
+""")
+assert filas_control.count() > 0, \
+    "La tabla de control no tiene filas para job_name='vera_framework' (el job no cargaria nada)"
+display(filas_control)
 
 # COMMAND ----------
 print("\n=== OBJETOS DEL FRAMEWORK CREADOS / VALIDADOS ===")
