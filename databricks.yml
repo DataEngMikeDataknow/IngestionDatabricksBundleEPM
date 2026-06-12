@@ -193,6 +193,33 @@ targets:
                   oracle_service: ${var.oracle_service}
 
   
+        # Job DEDICADO de diagnostico de red (on-demand, sin schedule).
+        # validar la conectividad a Oracle en uat
+        
+        vera_framework_check_conectividad:
+          name: vera_framework_check_conectividad_${bundle.target}
+          permissions:
+            - level: CAN_MANAGE_RUN
+              user_name: frans.taboada@epm.com.co
+          job_clusters:
+            - job_cluster_key: vera_framework_cluster
+              new_cluster:
+                spark_version: ${var.spark_version}
+                node_type_id: ${var.node_type_id}
+                num_workers: ${var.num_workers}
+          tasks:
+            - task_key: check_conectividad
+              job_cluster_key: vera_framework_cluster
+              notebook_task:
+                notebook_path: ./notebooks/check_conectividad_oracle.py
+                base_parameters:
+                  oracle_host: ${var.oracle_host}
+                  oracle_port: ${var.oracle_port}
+                  oracle_service: ${var.oracle_service}
+                  oracle_secret_scope: ${var.oracle_secret_scope}
+                  oracle_user: ${var.oracle_user}
+                  oracle_password_key: ${var.oracle_password_key}
+
   # PRODUCCIÓN
     
   pdn:
