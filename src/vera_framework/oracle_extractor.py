@@ -1,42 +1,49 @@
 """
-Extractor Oracle vía python-oracledb (driver thin).
+Extractor Oracle con DOS backends seleccionables (mismo flujo, distinto driver):
 
-Por qué oracledb y no Spark JDBC:
-  spark.read.format("jdbc") se ejecuta como fuente de datos externa de Spark.
-  En clusters Unity Catalog en modo de acceso Shared/Standard, esto requiere el
-  privilegio SELECT ON ANY FILE y falla con:
-    [INSUFFICIENT_PERMISSIONS] ... permission SELECT on any file. SQLSTATE: 42501
-  python-oracledb corre como código Python plano en el DRIVER: abre un socket TCP
-  a Oracle y trae las filas a memoria. Unity Catalog no lo intercepta.
+1) python-oracledb (modo thin) — POR DEFECTO (dllo/uat).
+   Cliente Python puro. NO soporta verificadores de contraseña 10G: contra una
+   cuenta con ese verifier lanza DPY-3015.
 
-  Si en el futuro se quisiera volver a Spark JDBC, habría que usar un cluster en
-  modo Single User / Dedicated, o configurar Lakehouse Federation (Foreign Catalog).
+2) Oracle JDBC thin vía JayDeBeApi — se activa cuando creds.jdbc_jar_path != "".
+   Usa el driver oficial de Oracle en Java puro (ojdbc), que SÍ autentica contra
+   el verifier 10G. NO requiere Oracle Instant Client ni librerías nativas
+   (libaio): solo el jar ojdbc en el classpath de una JVM que JPype levanta en el
+   driver. Se usa en pdn, donde la cuenta tiene verifier 10G.
 
-Apto para resultados pequeños/medianos (Q1, Q2 están filtradas por órdenes activas).
-fetchall() trae todo a memoria del driver; para resultados de millones de filas
-habría que paginar con fetchmany().
+Por qué NO Spark JDBC (spark.read.format("jdbc")):
+  En clusters Unity Catalog en modo Shared/Standard requiere SELECT ON ANY FILE y
+  falla con [INSUFFICIENT_PERMISSIONS]. Ambos backends de aquí corren como código
+  plano en el DRIVER (abren un socket a Oracle y traen las filas a memoria), así
+  que UC no los intercepta. JayDeBeApi NO es el data source de Spark: es JDBC
+  llamado directo desde Python en el driver, por eso no choca con esa restricción.
+
+Apto para resultados pequeños/medianos (Q1, Q2 filtradas por órdenes activas).
+fetchall() trae todo a memoria del driver; para millones de filas habría que
+paginar con fetchmany().
 """
 from dataclasses import dataclass
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType, StructField, StringType
-import oracledb
 
 
 @dataclass
 class OracleCredentials:
     user: str
     password: str
-    dsn: str            # 'host:puerto/servicio'
+    dsn: str                    # 'host:puerto/servicio'
+    jdbc_jar_path: str = ""     # "" => python-oracledb thin; ruta de jar ojdbc => JDBC/JayDeBeApi
 
     @classmethod
-    def from_secret_scope(cls, dbutils, scope: str, user: str,
-                          password_key: str, dsn: str) -> "OracleCredentials":
+    def from_secret_scope(cls, dbutils, scope: str, user: str, password_key: str,
+                          dsn: str, jdbc_jar_path: str = "") -> "OracleCredentials":
         # OJO: el usuario Oracle NO está en el secret scope; se pasa explícito.
         # Solo el password se lee del scope.
         return cls(
             user=user,
             password=dbutils.secrets.get(scope=scope, key=password_key),
             dsn=dsn,
+            jdbc_jar_path=jdbc_jar_path,
         )
 
 
@@ -48,13 +55,34 @@ class OracleExtractor:
 
     def read_query(self, sql: str) -> DataFrame:
         """
-        Ejecuta una query SQL contra Oracle con python-oracledb (modo thin).
-        Soporta CTEs (WITH) y sintaxis Oracle pura.
-        La lectura ocurre en el driver; el resultado se sube a un DataFrame Spark.
+        Ejecuta una query SQL contra Oracle y devuelve un DataFrame Spark.
+        Soporta CTEs (WITH) y sintaxis Oracle pura. La lectura ocurre en el driver.
 
-        El casteo final de tipos al schema de la tabla destino lo hace BronzeLoader;
-        aquí solo se infieren tipos desde las tuplas Python que devuelve oracledb.
+        Elige el backend según creds.jdbc_jar_path; la conversión de filas a
+        DataFrame es común. El casteo final de tipos al schema de la tabla destino
+        lo hace BronzeLoader; aquí solo se infieren tipos desde las filas Python.
         """
+        if self.creds.jdbc_jar_path:
+            columnas, filas = self._fetch_jdbc(sql)
+        else:
+            columnas, filas = self._fetch_oracledb(sql)
+
+        if not filas:
+            # DataFrame vacío pero con columnas, para que insertInto no truene
+            # cuando una query legítimamente devuelve 0 filas.
+            schema = StructType([
+                StructField(c, StringType(), True) for c in columnas
+            ])
+            return self.spark.createDataFrame([], schema)
+
+        # createDataFrame infiere tipos de las filas Python (int, float,
+        # decimal.Decimal, str). BronzeLoader castea luego al schema destino.
+        return self.spark.createDataFrame(filas, schema=columnas)
+
+    # ───── Backend 1: python-oracledb (thin) ─────
+    def _fetch_oracledb(self, sql: str):
+        # Import perezoso: solo dllo/uat instalan/usan oracledb.
+        import oracledb
         conn = oracledb.connect(
             user=self.creds.user,
             password=self.creds.password,
@@ -66,33 +94,33 @@ class OracleExtractor:
             columnas = [d[0] for d in cur.description]
             filas = cur.fetchall()
             cur.close()
+            return columnas, filas
         finally:
             conn.close()
 
-        if not filas:
-            # DataFrame vacío pero con columnas, para que insertInto no truene
-            # cuando una query legítimamente devuelve 0 filas.
-            schema = StructType([
-                StructField(c, StringType(), True) for c in columnas
-            ])
-            return self.spark.createDataFrame([], schema)
-
-        # createDataFrame infiere tipos de las tuplas Python (int, float,
-        # decimal.Decimal, str). BronzeLoader castea luego al schema destino.
-        return self.spark.createDataFrame(filas, schema=columnas)
-
-    def test_connection(self) -> bool:
-        """Prueba trivial de conectividad: SELECT 1 FROM DUAL."""
-        conn = oracledb.connect(
-            user=self.creds.user,
-            password=self.creds.password,
-            dsn=self.creds.dsn,
+    # ───── Backend 2: Oracle JDBC thin vía JayDeBeApi ─────
+    def _fetch_jdbc(self, sql: str):
+        # Import perezoso: solo pdn instala/usa JayDeBeApi + JPype1.
+        import jaydebeapi
+        url = f"jdbc:oracle:thin:@{self.creds.dsn}"   # dsn = host:puerto/servicio
+        conn = jaydebeapi.connect(
+            "oracle.jdbc.OracleDriver",               # clase del driver dentro del jar
+            url,
+            [self.creds.user, self.creds.password],
+            self.creds.jdbc_jar_path,                 # jar ojdbc (en Volume); JPype lo pone en el classpath
         )
         try:
             cur = conn.cursor()
-            cur.execute("SELECT 1 AS OK FROM DUAL")
-            ok = cur.fetchone()[0] == 1
+            cur.execute(sql)
+            columnas = [d[0] for d in cur.description]
+            filas = cur.fetchall()
             cur.close()
-            return ok
+            return columnas, filas
         finally:
             conn.close()
+
+    def test_connection(self) -> bool:
+        """Prueba trivial de conectividad por el backend activo: SELECT 1 FROM DUAL."""
+        fetch = self._fetch_jdbc if self.creds.jdbc_jar_path else self._fetch_oracledb
+        _, filas = fetch("SELECT 1 AS OK FROM DUAL")
+        return bool(filas) and int(filas[0][0]) == 1

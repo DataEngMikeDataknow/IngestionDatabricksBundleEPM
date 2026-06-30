@@ -14,7 +14,11 @@
 # pueden instalar librerias a nivel de cluster en ningun entorno.
 # Va de PRIMERO porque dbutils.library.restartPython() reinicia el kernel y
 # borra todo lo definido antes (los widgets sobreviven, el codigo Python no).
-%pip install oracledb>=2.0.0
+#   - oracledb: driver thin (dllo/uat).
+#   - JayDeBeApi + JPype1: solo los usa pdn, para conectar por Oracle JDBC thin
+#     (soporta el verifier 10G). Se instalan en los 3 por simplicidad; en
+#     dllo/uat quedan sin usar (el import es perezoso en oracle_extractor.py).
+%pip install oracledb>=2.0.0 JayDeBeApi JPype1
 dbutils.library.restartPython()
 
 # COMMAND ----------
@@ -30,6 +34,9 @@ dbutils.widgets.text("oracle_password_key", "AZ-SECRET-EPM-BOTPD05-FACTURACION-C
 dbutils.widgets.text("oracle_host", "epm-to34.corp.epm.com.co")
 dbutils.widgets.text("oracle_port", "1521")
 dbutils.widgets.text("oracle_service", "SFUAT")
+# "" => python-oracledb thin (dllo/uat). Con ruta de jar ojdbc en Volume =>
+# Oracle JDBC thin via JayDeBeApi (pdn, por el verifier 10G).
+dbutils.widgets.text("oracle_jdbc_jar_path", "")
 
 # COMMAND ----------
 # Resolucion del paquete propio `vera_framework` SIN instalarlo como wheel en

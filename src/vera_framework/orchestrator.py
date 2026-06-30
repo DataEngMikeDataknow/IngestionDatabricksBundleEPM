@@ -21,6 +21,7 @@ class MetadataOrchestrator:
             user=config.oracle_user,
             password_key=config.oracle_password_key,
             dsn=config.oracle_dsn,
+            jdbc_jar_path=config.oracle_jdbc_jar_path,
         )
         self.extractor = OracleExtractor(spark, creds)
         self.loader = BronzeLoader(spark, config.volume_path, config.run_id)
@@ -64,7 +65,7 @@ class MetadataOrchestrator:
             # 1. Recuperar el SQL del registro
             sql = get_query(fila["query_key"])
 
-            # 2. Ejecutar contra Oracle (python-oracledb, en el driver)
+            # 2. Ejecutar contra Oracle (python-oracledb thin o JDBC, segun config; en el driver)
             df = self.extractor.read_query(sql)
 
             # 3. Persistir Parquet (trazabilidad / rompe lineage con Oracle)

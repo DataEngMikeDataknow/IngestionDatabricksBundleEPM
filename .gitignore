@@ -1,0 +1,11 @@
+# Caché local del Databricks bundle (estado por usuario, no versionar)
+.databricks/
+
+# Artefactos de build del wheel
+dist/
+build/
+*.egg-info/
+
+# Python
+__pycache__/
+*.pyc

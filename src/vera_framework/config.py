@@ -20,6 +20,12 @@ class FrameworkConfig:
     run_id: str
     usuario_ejecutor: str
 
+    # Backend de conexión Oracle. "" => python-oracledb thin (dllo/uat). Si trae
+    # la ruta de un jar ojdbc (en Volume) => Oracle JDBC thin vía JayDeBeApi, que
+    # SÍ soporta el verifier de contraseña 10G (DPY-3015). Es el único campo con
+    # default, por eso va al final del dataclass.
+    oracle_jdbc_jar_path: str = ""
+
     @property
     def tabla_control(self) -> str:
         return f"{self.catalog_destino}.{self.schema_destino}.midas_control_cargas"
@@ -51,6 +57,7 @@ class FrameworkConfig:
             oracle_host=g("oracle_host"),
             oracle_port=int(g("oracle_port")),
             oracle_service=g("oracle_service"),
+            oracle_jdbc_jar_path=g("oracle_jdbc_jar_path"),
             run_id=run_id,
             usuario_ejecutor=(dbutils.notebook.entry_point.getDbutils()
                               .notebook().getContext().userName().get()),
