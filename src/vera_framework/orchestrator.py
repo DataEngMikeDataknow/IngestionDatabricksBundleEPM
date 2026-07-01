@@ -65,7 +65,7 @@ class MetadataOrchestrator:
             # 1. Recuperar el SQL del registro
             sql = get_query(fila["query_key"])
 
-            # 2. Ejecutar contra Oracle (python-oracledb thin o JDBC, segun config; en el driver)
+            # 2. Ejecutar contra Oracle (JDBC/JayDeBeApi, en el driver)
             df = self.extractor.read_query(sql)
 
             # 3. Persistir Parquet (trazabilidad / rompe lineage con Oracle)

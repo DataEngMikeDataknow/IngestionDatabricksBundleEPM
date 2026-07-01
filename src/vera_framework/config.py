@@ -20,10 +20,10 @@ class FrameworkConfig:
     run_id: str
     usuario_ejecutor: str
 
-    # Backend de conexión Oracle. "" => python-oracledb thin (dllo/uat). Si trae
-    # la ruta de un jar ojdbc (en Volume) => Oracle JDBC thin vía JayDeBeApi, que
-    # SÍ soporta el verifier de contraseña 10G (DPY-3015). Es el único campo con
-    # default, por eso va al final del dataclass.
+    # Ruta (en un Volume) del jar ojdbc para conectar a Oracle por JDBC/JayDeBeApi,
+    # backend ÚNICO del framework en todos los ambientes. Requerido en ejecución;
+    # conserva default "" solo por compatibilidad del widget (si queda vacío, el
+    # extractor lanza un error claro). Es el único campo con default, va al final.
     oracle_jdbc_jar_path: str = ""
 
     @property
@@ -39,7 +39,7 @@ class FrameworkConfig:
 
     @property
     def oracle_dsn(self) -> str:
-        """DSN para python-oracledb: 'host:puerto/servicio'."""
+        """DSN 'host:puerto/servicio' (base para armar la URL JDBC de Oracle)."""
         return f"{self.oracle_host}:{self.oracle_port}/{self.oracle_service}"
 
     @classmethod

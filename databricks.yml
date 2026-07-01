@@ -31,7 +31,7 @@ variables:
   oracle_user:         { description: "Usuario Oracle (NO esta en el secret scope, va explicito)" }
   oracle_secret_scope: { description: "Databricks Secret Scope que contiene la contraseña Oracle (varía por ambiente)" }
   oracle_password_key: { description: "Key del password Oracle dentro del secret scope" }
-  oracle_jdbc_jar_path: { description: "Ruta en Volume del jar ojdbc para conectar via JDBC/JayDeBeApi (verifier 10G). Vacío => python-oracledb thin", default: "" }
+  oracle_jdbc_jar_path: { description: "Ruta en Volume del jar ojdbc. Backend UNICO JDBC/JayDeBeApi en todos los ambientes. Requerido; se define por target (ver PUNTOS 1/3, 2/3, 3/3)", default: "" }
   pause_schedule:      { description: "PAUSED en dllo, UNPAUSED en uat/pdn" }
   service_principal:   { description: "Service principal usado en run_as (dllo)" }
   cluster_id:          { description: "ID del cluster compartido (solo aplica para dllo)", default: "" }
@@ -49,9 +49,9 @@ targets:
   # permisos para crear clusters nuevos en plataforma.
   # NINGUN target instala librerias via el bundle (no hay 'libraries:'):
   # por restriccion de plataforma no se pueden instalar libs a nivel de cluster
-  # en ningun entorno. oracledb se instala por %pip en la primera celda del
-  # notebook 20_ejecutar_framework.py (igual en dllo/uat/pdn) y el paquete del
-  # framework se resuelve via sys.path (fallback del mismo notebook).
+  # en ningun entorno. El driver Oracle JDBC (JayDeBeApi + JPype1) se instala por
+  # %pip en la primera celda del notebook 20_ejecutar_framework.py (igual en
+  # dllo/uat/pdn) y el paquete del framework se resuelve via sys.path.
   
   dllo:
     mode: production
@@ -75,6 +75,9 @@ targets:
       pause_schedule: PAUSED
       service_principal: 2080d313-3074-4adf-8265-916ef7645dc2
       cluster_id: 0722-211855-e1a090ph
+      # ═══ PUNTO 1/3 · RUTA DEL JAR OJDBC (dllo, Volume del catálogo np) ═══
+      # TODO(plataforma): confirmar la ruta DEFINITIVA del jar. Ruta tentativa:
+      oracle_jdbc_jar_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/_oracle_client/ojdbc11-23.26.2.0.0.jar
     resources:
       jobs:
         vera_framework_daily:
@@ -142,6 +145,9 @@ targets:
       oracle_user: SQL_EPMBOTPD05 
       oracle_secret_scope: AZ-SecretScopeDBKS-EPM-NP-KV-UAT
       oracle_password_key: AZ-SECRET-EPM-BOTPD05-FACTURACION-CTATECNICA
+      # ═══ PUNTO 2/3 · RUTA DEL JAR OJDBC (uat, Volume del catálogo np) ═══
+      # TODO(plataforma): confirmar la ruta DEFINITIVA del jar. Ruta tentativa:
+      oracle_jdbc_jar_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/_oracle_client/ojdbc11-23.26.2.0.0.jar
       service_principal: c0b3fdca-baec-4bab-9f08-c6e222d921ae
       pause_schedule: UNPAUSED
       spark_version: 15.4.x-scala2.12
@@ -241,9 +247,9 @@ targets:
       oracle_user: SQL_EPMBOTPD05
       oracle_secret_scope: AZ-SecretScopeDBKS-EPM-PROD-KV
       oracle_password_key: AZ-SECRET-EPM-OPEN-DB-CTATECNICA
-      # PROD usa Oracle JDBC thin (JayDeBeApi) por el verifier 10G. Subir el jar
-      # ojdbc11 23.26.2.0.0 (compatible con JDK 17 del DBR 16.4) a esta ruta del
-      # Volume antes de correr el job (ver README / nota de despliegue).
+      # ═══ PUNTO 3/3 · RUTA DEL JAR OJDBC (pdn, Volume del catálogo prod) ═══
+      # TODO(plataforma): confirmar la ruta DEFINITIVA del jar. Ruta tentativa
+      # (ojdbc11 23.26.2.0.0, compatible con JDK 17 del DBR 16.4):
       oracle_jdbc_jar_path: /Volumes/epm_datalake_vol_prod/facturacion_vol/facturacion_bronze_vol/_oracle_client/ojdbc11-23.26.2.0.0.jar
       service_principal: 1db15634-31b7-4f92-a976-fc8920216152
       pause_schedule: UNPAUSED

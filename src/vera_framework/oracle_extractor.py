@@ -1,22 +1,22 @@
 """
-Extractor Oracle con DOS backends seleccionables (mismo flujo, distinto driver):
+Extractor Oracle con backend ÚNICO: Oracle JDBC thin vía JayDeBeApi.
 
-1) python-oracledb (modo thin) — POR DEFECTO (dllo/uat).
-   Cliente Python puro. NO soporta verificadores de contraseña 10G: contra una
-   cuenta con ese verifier lanza DPY-3015.
+Se usa el mismo driver en TODOS los ambientes (dllo/uat/pdn) por reproducibilidad
+y coherencia de despliegue: el comportamiento no cambia entre entornos por usar
+distinto cliente. (Antes dllo/uat usaban python-oracledb thin y solo pdn JDBC;
+ahora es JDBC en todos.)
 
-2) Oracle JDBC thin vía JayDeBeApi — se activa cuando creds.jdbc_jar_path != "".
-   Usa el driver oficial de Oracle en Java puro (ojdbc), que SÍ autentica contra
-   el verifier 10G. NO requiere Oracle Instant Client ni librerías nativas
-   (libaio): solo el jar ojdbc en el classpath de una JVM que JPype levanta en el
-   driver. Se usa en pdn, donde la cuenta tiene verifier 10G.
+Por qué Oracle JDBC (ojdbc) y no python-oracledb thin:
+  El driver JDBC oficial de Oracle (ojdbc, Java puro) autentica contra cuentas con
+  verificador de contraseña 10G, que python-oracledb en modo thin NO soporta
+  (DPY-3015). No requiere Oracle Instant Client ni librerías nativas (libaio):
+  solo el jar ojdbc en el classpath de una JVM que JPype levanta en el driver.
 
 Por qué NO Spark JDBC (spark.read.format("jdbc")):
   En clusters Unity Catalog en modo Shared/Standard requiere SELECT ON ANY FILE y
-  falla con [INSUFFICIENT_PERMISSIONS]. Ambos backends de aquí corren como código
-  plano en el DRIVER (abren un socket a Oracle y traen las filas a memoria), así
-  que UC no los intercepta. JayDeBeApi NO es el data source de Spark: es JDBC
-  llamado directo desde Python en el driver, por eso no choca con esa restricción.
+  falla con [INSUFFICIENT_PERMISSIONS]. Aquí el JDBC corre como código plano en el
+  DRIVER (JayDeBeApi abre un socket a Oracle y trae las filas a memoria), así que
+  UC no lo intercepta.
 
 Apto para resultados pequeños/medianos (Q1, Q2 filtradas por órdenes activas).
 fetchall() trae todo a memoria del driver; para millones de filas habría que
@@ -32,11 +32,11 @@ class OracleCredentials:
     user: str
     password: str
     dsn: str                    # 'host:puerto/servicio'
-    jdbc_jar_path: str = ""     # "" => python-oracledb thin; ruta de jar ojdbc => JDBC/JayDeBeApi
+    jdbc_jar_path: str          # ruta del jar ojdbc en el Volume (requerido)
 
     @classmethod
     def from_secret_scope(cls, dbutils, scope: str, user: str, password_key: str,
-                          dsn: str, jdbc_jar_path: str = "") -> "OracleCredentials":
+                          dsn: str, jdbc_jar_path: str) -> "OracleCredentials":
         # OJO: el usuario Oracle NO está en el secret scope; se pasa explícito.
         # Solo el password se lee del scope.
         return cls(
@@ -55,17 +55,14 @@ class OracleExtractor:
 
     def read_query(self, sql: str) -> DataFrame:
         """
-        Ejecuta una query SQL contra Oracle y devuelve un DataFrame Spark.
-        Soporta CTEs (WITH) y sintaxis Oracle pura. La lectura ocurre en el driver.
+        Ejecuta una query SQL contra Oracle (JDBC/JayDeBeApi) y devuelve un
+        DataFrame Spark. Soporta CTEs (WITH) y sintaxis Oracle pura. La lectura
+        ocurre en el driver.
 
-        Elige el backend según creds.jdbc_jar_path; la conversión de filas a
-        DataFrame es común. El casteo final de tipos al schema de la tabla destino
-        lo hace BronzeLoader; aquí solo se infieren tipos desde las filas Python.
+        El casteo final de tipos al schema de la tabla destino lo hace BronzeLoader;
+        aquí solo se normalizan/infieren tipos desde las filas.
         """
-        if self.creds.jdbc_jar_path:
-            columnas, filas = self._fetch_jdbc(sql)
-        else:
-            columnas, filas = self._fetch_oracledb(sql)
+        columnas, filas = self._fetch_jdbc(sql)
 
         if not filas:
             # DataFrame vacío pero con columnas, para que insertInto no truene
@@ -75,32 +72,15 @@ class OracleExtractor:
             ])
             return self.spark.createDataFrame([], schema)
 
-        # createDataFrame infiere tipos de las filas Python (int, float,
-        # decimal.Decimal, str). BronzeLoader castea luego al schema destino.
         return self.spark.createDataFrame(filas, schema=columnas)
 
-    # ───── Backend 1: python-oracledb (thin) ─────
-    def _fetch_oracledb(self, sql: str):
-        # Import perezoso: solo dllo/uat instalan/usan oracledb.
-        import oracledb
-        conn = oracledb.connect(
-            user=self.creds.user,
-            password=self.creds.password,
-            dsn=self.creds.dsn,
-        )
-        try:
-            cur = conn.cursor()
-            cur.execute(sql)
-            columnas = [d[0] for d in cur.description]
-            filas = cur.fetchall()
-            cur.close()
-            return columnas, filas
-        finally:
-            conn.close()
-
-    # ───── Backend 2: Oracle JDBC thin vía JayDeBeApi ─────
+    # ───── Backend: Oracle JDBC thin vía JayDeBeApi ─────
     def _fetch_jdbc(self, sql: str):
-        # Import perezoso: solo pdn instala/usa JayDeBeApi + JPype1.
+        if not self.creds.jdbc_jar_path:
+            raise ValueError(
+                "oracle_jdbc_jar_path no está configurado. Se requiere la ruta del "
+                "jar ojdbc (en un Volume) para conectar a Oracle por JDBC/JayDeBeApi."
+            )
         import jaydebeapi
         from decimal import Decimal, InvalidOperation
         url = f"jdbc:oracle:thin:@{self.creds.dsn}"   # dsn = host:puerto/servicio
@@ -139,7 +119,6 @@ class OracleExtractor:
         return columnas, filas
 
     def test_connection(self) -> bool:
-        """Prueba trivial de conectividad por el backend activo: SELECT 1 FROM DUAL."""
-        fetch = self._fetch_jdbc if self.creds.jdbc_jar_path else self._fetch_oracledb
-        _, filas = fetch("SELECT 1 AS OK FROM DUAL")
+        """Prueba trivial de conectividad (JDBC): SELECT 1 FROM DUAL."""
+        _, filas = self._fetch_jdbc("SELECT 1 AS OK FROM DUAL")
         return bool(filas) and int(filas[0][0]) == 1

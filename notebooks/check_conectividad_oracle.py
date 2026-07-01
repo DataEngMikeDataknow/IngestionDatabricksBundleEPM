@@ -14,6 +14,7 @@ dbutils.widgets.text("oracle_service", "SFUAT")
 dbutils.widgets.text("oracle_secret_scope", "AZ-SecretScopeDBKS-EPM-NP-KV-UAT")
 dbutils.widgets.text("oracle_user", "SQL_EPMBOTPD05")
 dbutils.widgets.text("oracle_password_key", "AZ-SECRET-EPM-BOTPD05-FACTURACION-CTATECNICA")
+dbutils.widgets.text("oracle_jdbc_jar_path", "")   # ruta del jar ojdbc en un Volume (Paso 3)
 
 HOST = dbutils.widgets.get("oracle_host")
 PORT = int(dbutils.widgets.get("oracle_port"))
@@ -45,13 +46,13 @@ except Exception as e:
     )
 
 # COMMAND ----------
-# Instala oracledb (solo para el Paso 3)
-%pip install oracledb>=2.0.0
+# Instala el driver Oracle JDBC (solo para el Paso 3)
+%pip install JayDeBeApi JPype1
 dbutils.library.restartPython()
 
 # COMMAND ----------
-# Paso 3: Oracle (handshake + credenciales + listener)
-import oracledb
+# Paso 3: Oracle (handshake + credenciales + listener) via JDBC/JayDeBeApi
+import jaydebeapi
 
 HOST = dbutils.widgets.get("oracle_host")
 PORT = int(dbutils.widgets.get("oracle_port"))
@@ -59,25 +60,29 @@ SERVICE = dbutils.widgets.get("oracle_service")
 SCOPE = dbutils.widgets.get("oracle_secret_scope")
 USER = dbutils.widgets.get("oracle_user")
 PWD_KEY = dbutils.widgets.get("oracle_password_key")
+JAR = dbutils.widgets.get("oracle_jdbc_jar_path")
 
-dsn = f"{HOST}:{PORT}/{SERVICE}"
-print(f"Probando: {dsn}  (user={USER}, scope={SCOPE})")
+url = f"jdbc:oracle:thin:@{HOST}:{PORT}/{SERVICE}"
+print(f"Probando: {url}  (user={USER}, scope={SCOPE})")
+if not JAR:
+    raise RuntimeError("Falta oracle_jdbc_jar_path: ruta del jar ojdbc en un Volume.")
 
 pwd = dbutils.secrets.get(scope=SCOPE, key=PWD_KEY)
 try:
-    conn = oracledb.connect(user=USER, password=pwd, dsn=dsn)
+    conn = jaydebeapi.connect("oracle.jdbc.OracleDriver", url, [USER, pwd], JAR)
     cur = conn.cursor()
     cur.execute("SELECT 1 FROM DUAL")
-    ok = cur.fetchone()[0]
+    ok = cur.fetchall()[0][0]
     cur.close()
     conn.close()
     print(f"OK  Oracle responde (SELECT 1 FROM DUAL = {ok}). Red + credenciales OK.")
-except oracledb.DatabaseError as e:
+except Exception as e:
     raise RuntimeError(
-        f"La RED llego a Oracle pero la conexion fue rechazada: {e}\n"
+        f"La RED llego a Oracle pero la conexion fallo: {e}\n"
         f"-> ORA-01017 = usuario/clave (revisa oracle_user y el secreto {SCOPE}/{PWD_KEY}).\n"
         f"-> ORA-12514 = el service '{SERVICE}' no esta registrado en el listener.\n"
-        f"   DSN usado: {dsn}"
+        f"-> Si menciona driver/classpath: revisa que el jar {JAR} exista y sea legible.\n"
+        f"   URL usada: {url}"
     )
 
 # COMMAND ----------

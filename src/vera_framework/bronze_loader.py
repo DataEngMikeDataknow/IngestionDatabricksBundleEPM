@@ -22,8 +22,8 @@ class BronzeLoader:
         TRUNCATE + INSERT atómico vía insertInto(overwrite=True).
 
         La tabla destino YA existe (creada con DDL explícito en Sección 2.3).
-        Como oracledb + createDataFrame infieren tipos desde tuplas Python
-        (no desde el DDL Oracle), se castea cada columna al tipo declarado
+        Como el extractor (JDBC) + createDataFrame infieren tipos desde filas
+        Python (no desde el DDL Oracle), se castea cada columna al tipo declarado
         de la tabla destino ANTES de insertar. Así DECIMAL(20,6)/DECIMAL(15,3)
         quedan garantizados y insertInto no falla por mismatch de tipos.
         """

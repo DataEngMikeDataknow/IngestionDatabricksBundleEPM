@@ -1,10 +1,10 @@
 # Databricks notebook source
 # MAGIC %md # Entrypoint del framework metadata-driven (job diario)
 # MAGIC
-# MAGIC Las dependencias (driver `oracledb`) se instalan a nivel de NOTEBOOK con
-# MAGIC `%pip` (primera celda), mecanismo unico para TODOS los ambientes (dllo,
-# MAGIC uat, pdn): por restriccion de plataforma no se pueden instalar librerias
-# MAGIC a nivel de cluster. El paquete propio `vera_framework` se resuelve via
+# MAGIC Las dependencias (driver Oracle JDBC vía `JayDeBeApi`+`JPype1`) se instalan
+# MAGIC a nivel de NOTEBOOK con `%pip` (primera celda), mecanismo unico para TODOS
+# MAGIC los ambientes (dllo, uat, pdn): por restriccion de plataforma no se pueden
+# MAGIC instalar librerias a nivel de cluster. El paquete propio `vera_framework` se resuelve via
 # MAGIC `sys.path` (los archivos del bundle, incluido `src/`, se sincronizan al
 # MAGIC workspace), no por wheel.
 
@@ -14,11 +14,9 @@
 # pueden instalar librerias a nivel de cluster en ningun entorno.
 # Va de PRIMERO porque dbutils.library.restartPython() reinicia el kernel y
 # borra todo lo definido antes (los widgets sobreviven, el codigo Python no).
-#   - oracledb: driver thin (dllo/uat).
-#   - JayDeBeApi + JPype1: solo los usa pdn, para conectar por Oracle JDBC thin
-#     (soporta el verifier 10G). Se instalan en los 3 por simplicidad; en
-#     dllo/uat quedan sin usar (el import es perezoso en oracle_extractor.py).
-%pip install oracledb>=2.0.0 JayDeBeApi JPype1
+#   - JayDeBeApi + JPype1: conexión a Oracle por JDBC (driver ojdbc), backend
+#     UNICO en TODOS los ambientes (dllo/uat/pdn). Ya no se usa python-oracledb.
+%pip install JayDeBeApi JPype1
 dbutils.library.restartPython()
 
 # COMMAND ----------
@@ -34,15 +32,15 @@ dbutils.widgets.text("oracle_password_key", "AZ-SECRET-EPM-BOTPD05-FACTURACION-C
 dbutils.widgets.text("oracle_host", "epm-to34.corp.epm.com.co")
 dbutils.widgets.text("oracle_port", "1521")
 dbutils.widgets.text("oracle_service", "SFUAT")
-# "" => python-oracledb thin (dllo/uat). Con ruta de jar ojdbc en Volume =>
-# Oracle JDBC thin via JayDeBeApi (pdn, por el verifier 10G).
+# Ruta del jar ojdbc en Volume (backend JDBC/JayDeBeApi, unico en todos los
+# ambientes). Requerido; el job lo pasa desde ${var.oracle_jdbc_jar_path}.
 dbutils.widgets.text("oracle_jdbc_jar_path", "")
 
 # COMMAND ----------
 # Resolucion del paquete propio `vera_framework` SIN instalarlo como wheel en
 # ningun ambiente: si no esta en el path, se agrega `src/` del bundle (que el
 # deploy sincroniza al workspace, p.ej. /Workspace/.../files/src) al sys.path.
-# oracledb ya quedo instalado por el %pip de la primera celda.
+# El driver Oracle (JayDeBeApi/JPype1) ya quedo instalado por el %pip inicial.
 try:
     import vera_framework  # noqa: F401
 except ModuleNotFoundError:
