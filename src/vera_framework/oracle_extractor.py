@@ -102,6 +102,7 @@ class OracleExtractor:
     def _fetch_jdbc(self, sql: str):
         # Import perezoso: solo pdn instala/usa JayDeBeApi + JPype1.
         import jaydebeapi
+        from decimal import Decimal, InvalidOperation
         url = f"jdbc:oracle:thin:@{self.creds.dsn}"   # dsn = host:puerto/servicio
         conn = jaydebeapi.connect(
             "oracle.jdbc.OracleDriver",               # clase del driver dentro del jar
@@ -113,11 +114,29 @@ class OracleExtractor:
             cur = conn.cursor()
             cur.execute(sql)
             columnas = [d[0] for d in cur.description]
-            filas = cur.fetchall()
+            escalas = [d[5] for d in cur.description]   # 'scale' del metadata DB-API
+            filas_raw = cur.fetchall()
             cur.close()
-            return columnas, filas
         finally:
             conn.close()
+
+        # JayDeBeApi devuelve los NUMBER de Oracle como objetos Java (JPype:
+        # JDouble, BigDecimal, ...). Spark no puede inferir un tipo desde un objeto
+        # Java y los materializa como 'struct' vacío => EMPTY_SCHEMA al escribir
+        # Parquet. Se convierten a tipos Python nativos usando la escala del
+        # metadata: scale 0 => int, scale>0 => Decimal, cualquier otro => str.
+        # BronzeLoader castea luego al tipo exacto de la tabla destino.
+        def _py(v, scale):
+            if v is None:
+                return None
+            try:
+                d = Decimal(str(v))
+            except (InvalidOperation, ValueError):
+                return str(v)
+            return d if scale else int(d)
+
+        filas = [tuple(_py(v, sc) for v, sc in zip(fila, escalas)) for fila in filas_raw]
+        return columnas, filas
 
     def test_connection(self) -> bool:
         """Prueba trivial de conectividad por el backend activo: SELECT 1 FROM DUAL."""
