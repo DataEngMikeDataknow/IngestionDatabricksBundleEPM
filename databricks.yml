@@ -58,10 +58,10 @@ targets:
     default: true
     workspace:
       host: https://adb-1161217326944529.9.azuredatabricks.net
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace/Users/${var.service_principal}/.bundle/${bundle.name}/${bundle.target}
     run_as:
-      #service_principal_name: ${var.service_principal}
-      user_name: mpalomin@contratista.epm.co
+      service_principal_name: ${var.service_principal}
+      #user_name: mpalomin@contratista.epm.co
     variables:
       catalog_destino: epm_datalabs_catalog_dllo
       schema_destino: facturacion
@@ -75,10 +75,6 @@ targets:
       pause_schedule: PAUSED
       service_principal: 2080d313-3074-4adf-8265-916ef7645dc2
       cluster_id: 0722-211855-e1a090ph
-      # TEST en dllo: fuerza el backend Oracle JDBC (JayDeBeApi) para validar ese
-      # camino end-to-end. Vacío en uat; en pdn es obligatorio por el verifier 10G.
-      # El jar debe existir en esta ruta del Volume (np) y ser legible por quien corre.
-      oracle_jdbc_jar_path: /Volumes/epm_datalake_vol_np/facturacion_vol/facturacion_bronze_vol/_oracle_client/ojdbc11-23.26.2.0.0.jar
     resources:
       jobs:
         vera_framework_daily:
